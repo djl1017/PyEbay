@@ -107,6 +107,7 @@ var vm = new Vue({
                             this.orders[i].skus[j].amount = (parseFloat(order.skus[j].price) * order.skus[j].count).toFixed(2);
                             this.orders[i].status_name = this.ORDER_STATUS_ENUM[order.status];
                             this.orders[i].pay_method_name = this.PAY_METHOD_ENUM[order.pay_method];
+
                         }
                     }
                 })
