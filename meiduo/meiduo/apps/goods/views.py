@@ -2,14 +2,41 @@ from django.shortcuts import render
 from drf_haystack.viewsets import HaystackViewSet
 from rest_framework.generics import ListAPIView
 from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from orders.models import OrderInfo
 from .models import SKU
-from .serializers import SKUSerializer, SKUSearchSerializer
+from .serializers import SKUSerializer, SKUSearchSerializer, OrderCenterSerializer
 
 
 # Create your views here.
-# /categories/(?P<category_id>\d+)/skus?page=xxx&page_size=xxx&ordering=xxx
 
+
+class OrederCenterView(APIView):
+    """订单中心"""
+
+    # 登陆用户才可以访问
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # 获取当前登陆用户
+        user = request.user
+        # print(user.id)
+        # 查询用户订单数据
+        orders = OrderInfo.objects.filter(user_id=user.id).order_by('create_time')
+        # for order in orders:
+        # print(orders)
+
+        # 创建序列化器对象
+        serializer = OrderCenterSerializer(orders, many=True)
+        # print(serializer.data)
+        rest = dict(results=serializer.data)
+        return Response(rest)
+
+
+# /categories/(?P<category_id>\d+)/skus?page=xxx&page_size=xxx&ordering=xxx
 class SKUListView(ListAPIView):
     """商品列表界面"""
 
@@ -35,3 +62,6 @@ class SKUSearchViewSet(HaystackViewSet):
     index_models = [SKU]
 
     serializer_class = SKUSearchSerializer
+
+
+
