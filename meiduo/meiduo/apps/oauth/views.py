@@ -67,9 +67,6 @@ class QQAuthUserView(APIView):
 
             return response
 
-
-
-
     def post(self, request):
 
         # 创建序列化器对象,进行反序列化
