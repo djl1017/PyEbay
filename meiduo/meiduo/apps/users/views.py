@@ -12,7 +12,7 @@ from django_redis import get_redis_connection
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from .serializers import UserSerializer, UserDetailSerializer, EmailSerializer, UserAddressSerializer, \
-    AddressTitleSerializer, UserBrowseHistorySerializer, UserUpdatePasswordSerializer
+    AddressTitleSerializer, UserBrowseHistorySerializer
 
 from .models import User, Address
 from goods.models import SKU
@@ -20,13 +20,47 @@ from goods.serializers import SKUSerializer
 from carts.utils import merge_cart_cookie_to_redis
 
 
-class UserUpdatePasswordView(UpdateAPIView):
+# Create your views here.
 
+class UserPasswdmodification(APIView):
+    """用户密码修改"""
+
+    # 允许认证用户登陆
     permission_classes = [IsAuthenticated]
 
-    serializer_class = UserUpdatePasswordSerializer
+    def put(self, request, user_id):
 
-# Create your views here.
+        # 获取当前登陆用户
+        user = request.user
+
+        # 判断是否修改当前登陆用户密码
+        if not user_id == user_id:
+            return Response({'message': '不是当前用户'}, status=status.HTTP_400_BAD_REQUEST)
+        # 获取参数
+        old_password = request.data.get('old_password')
+        password = request.data.get('password')
+        password2 = request.data.get('password2')
+        # 非空判断
+        if not all([old_password, password, password2]):
+            return Response({'message': '参数错误'}, status=status.HTTP_400_BAD_REQUEST)
+        # 参数校验
+        if not user.check_password(old_password):
+            return Response({'message': '原密码错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if password != password2:
+            return Response({'message': '两次密码填写不一致'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 修改密码
+        user.set_password(password)
+        try:
+            user.save()
+        except Exception as e:
+
+            return Response({'message': '密码保存数据库异常'})
+
+        return Response({'message': '密码修改成功'})
+
+
 class UserAuthorizeView(ObtainJSONWebToken):
     """重写账号密码登录视图"""
 

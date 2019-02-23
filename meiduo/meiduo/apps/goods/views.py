@@ -28,7 +28,7 @@ class OrederCenterView(GenericAPIView):
     # 指定查询集
     def get_queryset(self):
         user = self.request.user
-        return OrderInfo.objects.filter(user_id=user.id)
+        return OrderInfo.objects.filter(user_id=user.id).order_by('-create_time')
 
     def get(self, request):
 
@@ -69,6 +69,7 @@ class OrederCenterView(GenericAPIView):
 
 
 # /categories/(?P<category_id>\d+)/skus?page=xxx&page_size=xxx&ordering=xxx
+
 class SKUListView(ListAPIView):
     """商品列表界面"""
 
