@@ -48,6 +48,7 @@ class ForGetupdate(APIView):
             return Response({'message': '超时'})
 
         user.set_password(password2)
+        user.save()
         return ({'message': 'OK'})
 
 
