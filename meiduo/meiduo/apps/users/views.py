@@ -37,18 +37,22 @@ class ForGetupdate(APIView):
         # password = request.POST.get('password')
         password2 = request.data.get('password')
 
-        print(password2)
+
         redis_conn = get_redis_connection('verify_codes')
         try:
-            is_access = redis_conn.get('access_%s'% user.name)
+            is_access = redis_conn.get('access_%s'% user.username)
+
         except:
-            return Response({'message': '无效用户'})
+            return Response({'message': '无效用户'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not is_access :
-            return Response({'message': '超时'})
+            return Response({'message': '超时'}, status=status.HTTP_400_BAD_REQUEST)
 
+        print(user.username)
         user.set_password(password2)
-        return ({'message': 'OK'})
+        user.save()
+
+        return Response({'message': 'OK'})
 
 
 
@@ -92,7 +96,7 @@ class ForGetPswd_sms_code(APIView):
 
         # 添加标记
         redis_conn = get_redis_connection('verify_codes')
-        redis_conn.setex('access_%s'%use.username,1,300)
+        redis_conn.setex('access_%s'%use.username,300,300)
 
 
         return Response({'message': 'OK', 'user_id': use.id})
@@ -198,6 +202,7 @@ class UserAuthorizeView(ObtainJSONWebToken):
     """重写账号密码登录视图"""
 
     def post(self, request, *args, **kwargs):
+
         response = super(UserAuthorizeView, self).post(request, *args, **kwargs)
         serializer = self.get_serializer(data=request.data)
 
