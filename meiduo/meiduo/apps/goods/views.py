@@ -69,6 +69,7 @@ class OrederCenterView(GenericAPIView):
 
 
 # /categories/(?P<category_id>\d+)/skus?page=xxx&page_size=xxx&ordering=xxx
+
 class SKUListView(ListAPIView):
     """商品列表界面"""
 

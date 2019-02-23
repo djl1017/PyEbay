@@ -17,7 +17,7 @@ from rest_framework_jwt.views import ObtainJSONWebToken
 
 from oauth.utils import generate_save_user_token, check_save_user_token
 from .serializers import UserSerializer, UserDetailSerializer, EmailSerializer, UserAddressSerializer, \
-    AddressTitleSerializer, UserBrowseHistorySerializer, UserUpdatePasswordSerializer
+    AddressTitleSerializer, UserBrowseHistorySerializer
 
 from .models import User, Address
 from goods.models import SKU
@@ -31,7 +31,7 @@ logger = logging.getLogger('django')  # 创建日志输出器
 # 修改页面
 # POST /users/undefined/password/
 class ForGetupdate(APIView):
-    def post(self,request,userid):
+    def post(self, request, userid):
 
         user = User.objects.get(id=userid)
         # password = request.POST.get('password')
@@ -40,11 +40,11 @@ class ForGetupdate(APIView):
         print(password2)
         redis_conn = get_redis_connection('verify_codes')
         try:
-            is_access = redis_conn.get('access_%s'% user.name)
+            is_access = redis_conn.get('access_%s' % user.name)
         except:
             return Response({'message': '无效用户'})
 
-        if not is_access :
+        if not is_access:
             return Response({'message': '超时'})
 
         user.set_password(password2)
@@ -52,12 +52,46 @@ class ForGetupdate(APIView):
         return ({'message': 'OK'})
 
 
+# Create your views here.
 
-class UserUpdatePasswordView(UpdateAPIView):
+class UserPasswdmodification(APIView):
+    """用户密码修改"""
 
+    # 允许认证用户登陆
     permission_classes = [IsAuthenticated]
 
-    serializer_class = UserUpdatePasswordSerializer
+    def put(self, request, user_id):
+
+        # 获取当前登陆用户
+        user = request.user
+
+        # 判断是否修改当前登陆用户密码
+        if not user_id == user_id:
+            return Response({'message': '不是当前用户'}, status=status.HTTP_400_BAD_REQUEST)
+        # 获取参数
+        old_password = request.data.get('old_password')
+        password = request.data.get('password')
+        password2 = request.data.get('password2')
+        # 非空判断
+        if not all([old_password, password, password2]):
+            return Response({'message': '参数错误'}, status=status.HTTP_400_BAD_REQUEST)
+        # 参数校验
+        if not user.check_password(old_password):
+            return Response({'message': '原密码错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if password != password2:
+            return Response({'message': '两次密码填写不一致'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 修改密码
+        user.set_password(password)
+        try:
+            user.save()
+        except Exception as e:
+
+            return Response({'message': '密码保存数据库异常'})
+
+        return Response({'message': '密码修改成功'})
+
 
 # Create your views here
 
@@ -66,10 +100,10 @@ class UserUpdatePasswordView(UpdateAPIView):
 # GET /accounts/fklucky/password/token/?sms_code=511058
 class ForGetPswd_sms_code(APIView):
     """验证手机验证码模块"""
-    def get(self,request,username):
+
+    def get(self, request, username):
 
         sms_code = request.GET.get('sms_code')
-
 
         use = User.objects.get(username=username)
 
@@ -78,7 +112,6 @@ class ForGetPswd_sms_code(APIView):
         if not sms_code:
             return Response({'message': '错误请求'}, status=status.HTTP_400_BAD_REQUEST)
         redis_conn = get_redis_connection('verify_codes')
-
 
         real_code = redis_conn.get('fgt_sms_%s' % mobile).decode()
 
@@ -93,19 +126,17 @@ class ForGetPswd_sms_code(APIView):
 
         # 添加标记
         redis_conn = get_redis_connection('verify_codes')
-        redis_conn.setex('access_%s'%use.username,1,300)
-
+        redis_conn.setex('access_%s' % use.username, 1, 300)
 
         return Response({'message': 'OK', 'user_id': use.id})
-
-
 
 
 # 手机发送验证码模块
 # GET /sms_codes/?access_token=eyJleHAiOjE1NT
 class ForGetPswd(APIView):
     """发送手机验证码"""
-    def get(self,request):
+
+    def get(self, request):
         access_teken = request.GET.get('access_token')
         mobile = check_save_user_token(access_teken)
         # 0.创建redis连接对象
@@ -148,10 +179,10 @@ class ForGetUsernameCountView(APIView):
 
     def get(self, request, username):
         request_dict = request.GET
-        image_code =request_dict.get('image_code_id')
+        image_code = request_dict.get('image_code_id')
         image_text = request_dict.get('text')
 
-        if not all([image_code,image_text]):
+        if not all([image_code, image_text]):
             return Response({'message': '缺少缺少参数'}, status=status.HTTP_400_BAD_REQUEST)
 
         redis_conn = get_redis_connection('verify_codes')
@@ -166,7 +197,6 @@ class ForGetUsernameCountView(APIView):
 
         if real_code.decode().lower() != image_text.lower():
             return Response({'message': '验证码不正确'}, status=status.HTTP_400_BAD_REQUEST)
-
 
         # 查询用户名是否已存在
         # count = User.objects.filter(is_active=True).filter(username=username).count()
@@ -188,11 +218,6 @@ class ForGetUsernameCountView(APIView):
         response = Response(data)
 
         return Response(data)
-
-
-
-
-
 
 
 class UserAuthorizeView(ObtainJSONWebToken):
