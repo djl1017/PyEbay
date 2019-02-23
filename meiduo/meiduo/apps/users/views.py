@@ -12,13 +12,19 @@ from django_redis import get_redis_connection
 from rest_framework_jwt.views import ObtainJSONWebToken
 
 from .serializers import UserSerializer, UserDetailSerializer, EmailSerializer, UserAddressSerializer, \
-    AddressTitleSerializer, UserBrowseHistorySerializer
+    AddressTitleSerializer, UserBrowseHistorySerializer, UserUpdatePasswordSerializer
 
 from .models import User, Address
 from goods.models import SKU
 from goods.serializers import SKUSerializer
 from carts.utils import merge_cart_cookie_to_redis
 
+
+class UserUpdatePasswordView(UpdateAPIView):
+
+    permission_classes = [IsAuthenticated]
+
+    serializer_class = UserUpdatePasswordSerializer
 
 # Create your views here.
 class UserAuthorizeView(ObtainJSONWebToken):
