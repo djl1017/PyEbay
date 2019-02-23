@@ -40,16 +40,16 @@ class ForGetupdate(APIView):
         print(password2)
         redis_conn = get_redis_connection('verify_codes')
         try:
-            is_access = redis_conn.get('access_%s' % user.name)
+            is_access = redis_conn.get('access_%s' % user.username)
         except:
-            return Response({'message': '无效用户'})
+            return Response({'message': '无效用户'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not is_access:
-            return Response({'message': '超时'})
+            return Response({'message': '超时'}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(password2)
         user.save()
-        return ({'message': 'OK'})
+        return Response({'message': 'OK'})
 
 
 # Create your views here.
@@ -65,9 +65,6 @@ class UserPasswdmodification(APIView):
         # 获取当前登陆用户
         user = request.user
 
-        # 判断是否修改当前登陆用户密码
-        if not user_id == user_id:
-            return Response({'message': '不是当前用户'}, status=status.HTTP_400_BAD_REQUEST)
         # 获取参数
         old_password = request.data.get('old_password')
         password = request.data.get('password')
@@ -126,7 +123,7 @@ class ForGetPswd_sms_code(APIView):
 
         # 添加标记
         redis_conn = get_redis_connection('verify_codes')
-        redis_conn.setex('access_%s' % use.username, 1, 300)
+        redis_conn.setex('access_%s' % use.username, 300, 1)
 
         return Response({'message': 'OK', 'user_id': use.id})
 

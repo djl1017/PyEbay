@@ -44,7 +44,7 @@ var vm = new Vue({
                 return;
             } 
             if (vm.user_id && vm.token) {
-                axios.put(this.host + '/users/'+vm.user_id+'/password/',
+                axios.put(this.host + '/users/'+vm.user_id+'/passwords/',
                         {
                             old_password: vm.old_pwd,
                             password: vm.new_pwd,
@@ -59,6 +59,7 @@ var vm = new Vue({
                     )
                     .then(function(response){
                         alert('保存成功');
+                        location.href = '/user_center_info.html';
                     })
                     .catch(function(error){
                         if (error.response.status === 403) {
