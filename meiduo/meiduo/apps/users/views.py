@@ -1,6 +1,8 @@
 import random
 
 import logging
+import re
+
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import status
@@ -17,7 +19,7 @@ from rest_framework_jwt.views import ObtainJSONWebToken
 
 from oauth.utils import generate_save_user_token, check_save_user_token
 from .serializers import UserSerializer, UserDetailSerializer, EmailSerializer, UserAddressSerializer, \
-    AddressTitleSerializer, UserBrowseHistorySerializer, UserUpdatePasswordSerializer
+    AddressTitleSerializer, UserBrowseHistorySerializer, UserUpdatePasswordSerializer, UserCountForGetpswdSerializer
 
 from .models import User, Address
 from goods.models import SKU
@@ -31,36 +33,44 @@ logger = logging.getLogger('django')  # 创建日志输出器
 # 修改页面
 # POST /users/undefined/password/
 class ForGetupdate(APIView):
-    def post(self,request,userid):
+    def post(self, request, userid):
 
         user = User.objects.get(id=userid)
         # password = request.POST.get('password')
-        password2 = request.data.get('password')
+        password = request.data.get('password')
+        password2 = request.data.get('password2')
+        print(password, password2)
+        if password != password2:
+            return Response({'message': '两次不一致'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not re.match(r'\S{8,20}', password):
+            return Response({'message': '密码格式不正确'}, status=status.HTTP_400_BAD_REQUEST)
 
         redis_conn = get_redis_connection('verify_codes')
         try:
-            is_access = redis_conn.get('access_%s'% user.username)
+            is_access = redis_conn.get('access_%s' % user.username)
 
         except:
             return Response({'message': '无效用户'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not is_access :
+        if not is_access:
             return Response({'message': '超时'}, status=status.HTTP_400_BAD_REQUEST)
 
-        print(user.username)
-        user.set_password(password2)
+        # 删除该值
+        redis_conn.delete('access_%s' % user.username)
+
+        user.set_password(password)
         user.save()
 
+        print('保存%s密码成功' % userid)
         return Response({'message': 'OK'})
 
 
-
 class UserUpdatePasswordView(UpdateAPIView):
-
     permission_classes = [IsAuthenticated]
 
     serializer_class = UserUpdatePasswordSerializer
+
 
 # Create your views here
 
@@ -69,10 +79,10 @@ class UserUpdatePasswordView(UpdateAPIView):
 # GET /accounts/fklucky/password/token/?sms_code=511058
 class ForGetPswd_sms_code(APIView):
     """验证手机验证码模块"""
-    def get(self,request,username):
+
+    def get(self, request, username):
 
         sms_code = request.GET.get('sms_code')
-
 
         use = User.objects.get(username=username)
 
@@ -82,66 +92,49 @@ class ForGetPswd_sms_code(APIView):
             return Response({'message': '错误请求'}, status=status.HTTP_400_BAD_REQUEST)
         redis_conn = get_redis_connection('verify_codes')
 
-
         real_code = redis_conn.get('fgt_sms_%s' % mobile).decode()
 
         if real_code != sms_code:
             return Response({'message': '验证码错误'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 删除该值
-
-
-
-
+        redis_conn.delete('fgt_sms_%s' % mobile)
 
         # 添加标记
         redis_conn = get_redis_connection('verify_codes')
-        redis_conn.setex('access_%s'%use.username,300,300)
-
+        redis_conn.setex('access_%s' % use.username, 300, 300)
 
         return Response({'message': 'OK', 'user_id': use.id})
-
-
 
 
 # 手机发送验证码模块
 # GET /sms_codes/?access_token=eyJleHAiOjE1NT
 class ForGetPswd(APIView):
     """发送手机验证码"""
-    def get(self,request):
+
+    def get(self, request):
         access_teken = request.GET.get('access_token')
         mobile = check_save_user_token(access_teken)
-        # 0.创建redis连接对象
+
         redis_conn = get_redis_connection('verify_codes')
-        # 1.获取此手机号是否有发送过的标记
+
         flag = redis_conn.get('send_flag_%s' % mobile)
-        # 2.如果已发送就提前响应,不执行后续代码
+
         if flag:  # 如果if成立说明此手机号60秒内发过短信
             return Response({'message': '频繁发送短信'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3.生成短信验证码
         sms_code = '%06d' % random.randint(0, 999999)
         logger.info(sms_code)
-        # 创建redis管道对象
+
         pl = redis_conn.pipeline()
 
-        # 4.把验证码存储到redis中
-        # redis_conn.setex(key, 过期时间, value)
-        # redis_conn.setex('sms_%s' % mobile, constants.SMS_CODE_REDIS_EXPIRES, sms_code)
         pl.setex('fgt_sms_%s' % mobile, 300, sms_code)
-        # 4.1 存储此手机号已发送短信标记
-        # redis_conn.setex('send_flag_%s' % mobile, constants.SEND_SMS_CODE_INTERVAL, 1)
+
         pl.setex('fgt_send_flag_%s' % mobile, 60, 1)
 
-        # 执行管道
         pl.execute()
 
-        # 5.利用容联云通讯发短信
-        # CCP().send_template_sms(mobile, [sms_code, constants.SMS_CODE_REDIS_EXPIRES // 60], 1)
-        # 触发异步任务(让发短信不要阻塞主线程)
-        # send_sms_code(mobile, sms_code)
         send_sms_code.delay(mobile, sms_code)
-        # 6.响应
         return Response({'message': 'ok'})
 
 
@@ -151,58 +144,24 @@ class ForGetUsernameCountView(APIView):
 
     def get(self, request, username):
         request_dict = request.GET
-        image_code =request_dict.get('image_code_id')
-        image_text = request_dict.get('text')
+        image_code_id = request_dict.get('image_code_id')
+        text = request_dict.get('text')
 
-        if not all([image_code,image_text]):
-            return Response({'message': '缺少缺少参数'}, status=status.HTTP_400_BAD_REQUEST)
+        """使用序列化器"""
+        serializer = UserCountForGetpswdSerializer(data={
+            'image_code_id': image_code_id,
+            'text': text,
+            'username': username})
+        serializer.is_valid(raise_exception=True)
 
-        redis_conn = get_redis_connection('verify_codes')
-
-        try:
-            real_code = redis_conn.get("forgetpswd_%s" % image_code)
-        except:
-            return Response({'message': '错误图片'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not real_code:
-            return Response({'message': '验证码超时'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if real_code.decode().lower() != image_text.lower():
-            return Response({'message': '验证码不正确'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-        # 查询用户名是否已存在
-        # count = User.objects.filter(is_active=True).filter(username=username).count()
-        try:
-            use = User.objects.filter(is_active=True).get(username=username)
-        except:
-            use = None
-        if not use:
-            return Response({'message': '该用户不存在'})
-
-        # 给密码进行加密
-        data = generate_save_user_token(use.mobile)
-
-        # 构建响应数据
-        data = {
-            'mobile': use.mobile,
-            'access_token': data
-        }
-        response = Response(data)
-
-        return Response(data)
-
-
-
-
-
+        print(serializer.validated_data)
+        return Response(serializer.validated_data)
 
 
 class UserAuthorizeView(ObtainJSONWebToken):
     """重写账号密码登录视图"""
 
     def post(self, request, *args, **kwargs):
-
         response = super(UserAuthorizeView, self).post(request, *args, **kwargs)
         serializer = self.get_serializer(data=request.data)
 
