@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django_redis import get_redis_connection
@@ -6,11 +5,10 @@ from decimal import Decimal
 from rest_framework.response import Response
 from rest_framework.generics import CreateAPIView
 from rest_framework import serializers
-import re
 
 from goods.models import SKU
 from .serializers import OrderSettlementSerializer, CommitOrderSerializer, UncommentOrderGoodsSerializer, \
-    CommentGoodsSerializer
+    CommentGoodsSerializer, SKUCommentsSerializer
 from .models import OrderInfo, OrderGoods
 
 
@@ -27,19 +25,13 @@ class SKUCommemtsView(APIView):
             raise serializers.ValidationError('sku_id有误')
 
         order_goods = OrderGoods.objects.filter(sku=sku, is_commented=True)
-        comment_score_list = []
         for order_good in order_goods:
-            comment_score_dict = {}
-            comment_score_dict['score'] = order_good.score
-            comment_score_dict['comment'] = order_good.comment
-            # 需要将用户名模糊处理
             username = order_good.order.user.username
-            result = result = username[0] + '***' + username[len(username) - 1]
-            comment_score_dict['username'] = result
+            result = username[0] + '***' + username[len(username) - 1]
+            order_good.username = result
 
-            comment_score_list.append(comment_score_dict)
-
-        return Response(comment_score_list)
+        serializer = SKUCommentsSerializer(order_goods, many=True)
+        return Response(serializer.data)
 
 
 class UncommentGoodsView(APIView):
@@ -58,21 +50,10 @@ class UncommentGoodsView(APIView):
         except OrderInfo.DoesNotExist:
             raise serializers.Serializer('order_id无效')
 
-        uncomment_dict = []
-        # 筛选出所有未评论数据
-        for order_good in order_info.skus.all().filter(is_commented=False):
-            sku = order_good.sku
-            sku_dict = {
-                'sku': {
-                    'id': sku.id,
-                    'name': sku.name,
-                    'default_image_url': sku.default_image_url
-                },
-                'price': order_good.price
-            }
-            uncomment_dict.append(sku_dict)
+        skus = order_info.skus.all().filter(is_commented=False)
 
-        return Response(uncomment_dict)
+        serializer = UncommentOrderGoodsSerializer(skus, many=True)
+        return Response(serializer.data)
 
 
 class GoodsJudgeView(APIView):

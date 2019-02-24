@@ -29,6 +29,7 @@
                     <form id="reg_form" v-on:submit.prevent="on_submit">
                         <ul>
 
+
                             <li>
                                 <label>手机号:</label>
                                 <input type="text" v-model="mobile" v-on:blur="check_phone" name="phone" id="phone">
@@ -45,12 +46,14 @@
                                        id="pic_code" class="msg_input">
                                 <img v-bind:src="image_code_url" v-on:click="generate_image_code" alt="图形验证码"
                                      class="pic_code">
+
                                 <span v-show="error_image_code" class="error_tip">{{ error_image_code_message }}</span>
                             </li>
                             <li>
                                 <label>短信验证码:</label>
                                 <input type="text" v-model="sms_code" v-on:blur="check_sms_code" name="msg_code"
                                        id="msg_code" class="msg_input">
+
                                 <a v-on:click="send_sms_code" class="get_msg_code">{{ sms_code_tip }}</a>
                                 <span v-show="error_sms_code" class="error_tip">{{ error_sms_code_message }}</span>
                             </li>

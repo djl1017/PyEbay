@@ -39,7 +39,6 @@ var vm = new Vue({
                     localStorage.username = response.data.username;
                     localStorage.token = response.data.token;
 
-
                     // 从路径中取出state,引导用户进入登录成功之后的页面
                     var state = this.get_query_string('state');
                     location.href = state;
@@ -86,6 +85,7 @@ var vm = new Vue({
 
             // 设置页面中图片验证码img标签的src属性
             this.image_code_url = this.host + "/oauth/image_codes/" + this.image_code_id + "/";
+
         },
         check_pwd: function (){
             var len = this.password.length;
@@ -138,6 +138,7 @@ var vm = new Vue({
 
             // 向后端接口发送请求，让后端发送短信验证码
             axios.get(this.host + '/oauth/sms_codes/' + this.mobile + '/?text=' + this.image_code+'&image_code_id='+ this.image_code_id, {
+
                     responseType: 'json'
                 })
                 .then(response => {

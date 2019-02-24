@@ -98,7 +98,9 @@ var vm = new Vue({
         // 微博登录
         weibo_login: function () {
             var next = this.get_query_string('next') || '/';
+
             axios.get(this.host + '/oauth/weibo/authorization/?next=' + next, {
+
                 responseType: 'json',
                 withCredentials: true
             })
