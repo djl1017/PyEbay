@@ -156,7 +156,6 @@ class WeiboAuthUserView(APIView):
 
             weibo_auth_model = OAuthSinaUser.objects.get(access_token=access_token)
         except OAuthSinaUser.DoesNotExist:
-            print('9999999999999')
             # 视图一定要有返回值, 之前写的是pass, 就一直没有处理了
 
             # 将access_token加密后返回给前端, 保存一下
@@ -164,7 +163,6 @@ class WeiboAuthUserView(APIView):
             return Response({'access_token': access_token})
 
         else:  # 已经绑定过, 则手动生成token
-            print('88888888888888')
             jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER  # 加载生成载荷函数
             jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER  # 加载生成token函数
 

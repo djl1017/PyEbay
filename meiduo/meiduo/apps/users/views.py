@@ -37,7 +37,6 @@ class ForGetupdate(APIView):
         # password = request.POST.get('password')
         password2 = request.data.get('password')
 
-        print(password2)
         redis_conn = get_redis_connection('verify_codes')
         try:
             is_access = redis_conn.get('access_%s' % user.username)
