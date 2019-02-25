@@ -7,6 +7,7 @@ from meiduo.libs.yuntongxun.sms import CCP
 from rest_framework.response import Response
 import logging
 from rest_framework import status
+from rest_framework.throttling import UserRateThrottle
 
 from meiduo.utils.captcha.captcha import captcha
 from . import constants
@@ -19,7 +20,9 @@ logger = logging.getLogger('django')  # 创建日志输出器
 # Create your views here.
 class SMS_ImageCodeView(APIView):
     """发送图片验证码"""
-    def get(self,request,image_codes):
+    throttle_classes = (UserRateThrottle,)
+
+    def get(self, request, image_codes):
         redis_conn = get_redis_connection('verify_codes')
         # 生成图片验证码
         image_name, real_image_code, image_data = captcha.generate_captcha()
@@ -30,8 +33,6 @@ class SMS_ImageCodeView(APIView):
             print('图片存入ｒｅｄｉｓ失败')
         logger.info(real_image_code)
         return HttpResponse(image_data)
-
-
 
 
 class SMSCodeView(APIView):
