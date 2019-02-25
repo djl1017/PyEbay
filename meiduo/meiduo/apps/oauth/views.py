@@ -20,9 +20,7 @@ from celery_tasks.sms.tasks import send_sms_code
 
 logger = logging.getLogger('django')
 
-class WeiboRegisterView(APIView):
-    def post(self, request):
-        pass
+
 
 class GenerateSmsCodeView(APIView):
     """生成短信验证码视图"""
@@ -56,7 +54,6 @@ class GenerateSmsCodeView(APIView):
 
         real_image_code = real_image_code.decode()
         redis_conn.delete('ImageCode_' + uuid)
-
 
         logger.info('image_code:' + image_code)
         logger.info('real_image_code:' + real_image_code)
@@ -110,6 +107,7 @@ class WeiboAuthURLView(APIView):
     def get(self, request):
         "生成微博登录链接"
         # 获取next(从哪去取到login)参数路基
+        cart_str = request.COOKIES.get('carts')
         next = request.query_params.get('next')
         if not next:
             next = '/'
@@ -118,13 +116,13 @@ class WeiboAuthURLView(APIView):
             client_id=settings.SINA_CLIENT_ID,
             client_secret=settings.SINA_CLIENT_SECRET,
             redirect_uri=settings.SINA_REDIRECT_URI,
-            state = next,
+            state=next,
 
         )
-
+        cart_str = request.COOKIES.get('carts')
         # 拼接好的登录链接
         login_url = authoweibo.get_weibo_login_url()
-
+        cart_str = request.COOKIES.get('carts')
         return Response({'login_url': login_url})
 
 
@@ -133,6 +131,7 @@ class WeiboAuthUserView(APIView):
 
     def get(self, request):
         # 获取查询参数中的code 参数
+        cart_str = request.COOKIES.get('carts')
         code = request.query_params.get('code')
         if not code:
             return Response({'message': "没有code"})
@@ -179,15 +178,16 @@ class WeiboAuthUserView(APIView):
                 'user_id': user.id
             })
 
+            cart_str = request.COOKIES.get('carts')
             # cookie购物车合并到redis
-            # merge_cart_cookie_to_redis(request, user, response)
+            merge_cart_cookie_to_redis(request, user, response)
             return response
 
-    def post(self, request):
+    def post(self, request1):
         """登录post"""
 
         # 创建序列化器, 进行反序列化
-        serializer = WeiboAuthUserSerializer(data=request.data)
+        serializer = WeiboAuthUserSerializer(data=request1.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
@@ -198,11 +198,15 @@ class WeiboAuthUserView(APIView):
         payload = jwt_payload_handler(user)  # 生成载荷
         token = jwt_encode_handler(payload)  # 根据载荷生成token
 
-        return Response({
+        response = Response({
             'token': token,
             'username': user.username,
             'user_id': user.id
         })
+
+        # cookie购物车合并到redis
+        merge_cart_cookie_to_redis(request1, user, response)
+        return response
 
 
 class QQAuthUserView(APIView):
@@ -252,6 +256,7 @@ class QQAuthUserView(APIView):
                 'user_id': user.id
             })
             # 做cookie购物车合并到redis操作
+            cart_str = request.COOKIES.get('carts')
             merge_cart_cookie_to_redis(request, user, response)
 
             return response
