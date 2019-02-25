@@ -107,7 +107,6 @@ class WeiboAuthURLView(APIView):
     def get(self, request):
         "生成微博登录链接"
         # 获取next(从哪去取到login)参数路基
-        cart_str = request.COOKIES.get('carts')
         next = request.query_params.get('next')
         if not next:
             next = '/'
@@ -119,10 +118,9 @@ class WeiboAuthURLView(APIView):
             state=next,
 
         )
-        cart_str = request.COOKIES.get('carts')
         # 拼接好的登录链接
         login_url = authoweibo.get_weibo_login_url()
-        cart_str = request.COOKIES.get('carts')
+        logger.info(login_url)
         return Response({'login_url': login_url})
 
 
@@ -131,7 +129,6 @@ class WeiboAuthUserView(APIView):
 
     def get(self, request):
         # 获取查询参数中的code 参数
-        cart_str = request.COOKIES.get('carts')
         code = request.query_params.get('code')
         if not code:
             return Response({'message': "没有code"})
@@ -178,7 +175,6 @@ class WeiboAuthUserView(APIView):
                 'user_id': user.id
             })
 
-            cart_str = request.COOKIES.get('carts')
             # cookie购物车合并到redis
             merge_cart_cookie_to_redis(request, user, response)
             return response
@@ -256,7 +252,6 @@ class QQAuthUserView(APIView):
                 'user_id': user.id
             })
             # 做cookie购物车合并到redis操作
-            cart_str = request.COOKIES.get('carts')
             merge_cart_cookie_to_redis(request, user, response)
 
             return response

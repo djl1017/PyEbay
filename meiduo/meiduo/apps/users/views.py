@@ -30,6 +30,42 @@ from celery_tasks.sms.tasks import send_sms_code
 logger = logging.getLogger('django')  # 创建日志输出器
 
 
+class UserPasswdmodification(APIView):
+    """用户密码修改"""
+
+    # 允许认证用户登陆
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, user_id):
+        """
+        重置用户密码
+        :param request: 用户请求
+        :param user_id: 需要修改用户的id
+        :return: message
+        """
+        user = request.user
+        old_password = request.data.get('old_password')
+        password = request.data.get('password')
+        password2 = request.data.get('password2')
+
+        if not all([old_password, password, password2]):
+            return Response({'message': '参数错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(old_password):
+            return Response({'message': '原密码错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if password != password2:
+            return Response({'message': '两次密码填写不一致'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 修改密码
+        user.set_password(password)
+        try:
+            user.save()
+        except Exception as e:
+            return Response({'message': '密码保存数据库异常'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return Response({'message': '密码修改成功'})
+
+
 # 修改页面
 # POST /users/undefined/password/
 class ForGetupdate(APIView):
@@ -39,7 +75,6 @@ class ForGetupdate(APIView):
         # password = request.POST.get('password')
         password = request.data.get('password')
         password2 = request.data.get('password2')
-        print(password, password2)
         if password != password2:
             return Response({'message': '两次不一致'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -61,7 +96,6 @@ class ForGetupdate(APIView):
         user.set_password(password)
         user.save()
 
-        print('保存%s密码成功' % userid)
         return Response({'message': 'OK'})
 
 
@@ -182,7 +216,6 @@ class ForGetUsernameCountView(APIView):
             'username': username})
         serializer.is_valid(raise_exception=True)
 
-        print(serializer.validated_data)
         return Response(serializer.validated_data)
 
 
